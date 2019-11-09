@@ -4,6 +4,7 @@ import numpy as np
 from TD3 import TD3
 from utils import ReplayBuffer
 import argparse
+import random, copy
 
 def parse_arguments():
     parser = argparse.ArgumentParser("TRAINING")
@@ -18,6 +19,7 @@ def parse_arguments():
     parser.add_argument("--max-episodes", type=int, default=1000, help="maximum training episodes")
     parser.add_argument("--save-rate", type=int, default=100, help="save policy each...")
     parser.add_argument("--render", action="store_true", default=False)
+    parser.add_argument("--ensemble", action="store_true", default=False)
     return parser.parse_args()
 
 
@@ -26,8 +28,23 @@ def is_solved(env, avg_reward):
         return avg_reward > 200
     elif env == 'BipedalWalker-v2' or env == 'BipedalWalkerHardcore-v2':
         return avg_reward > 300
+    elif env == 'Ant-v2':
+        return avg_reward > 3000
     else:
         return False
+
+
+def get_random_envs(env_name, lower=0.75, upper=1.25):
+    rand = random.random()
+    rand = rand * (upper - lower) + lower
+    env = gym.make(env_name)
+    if 'model' in dir(env.env):                     # for mujoco envs
+        ori_mass = copy.deepcopy(env.env.model.body_mass.copy())
+        for idx in range(len(ori_mass)):
+            env.env.model.body_mass[idx] = ori_mass[idx] * rand
+    elif 'world' in dir(env.env):
+        env.env.world.gravity *= rand
+    return env
 
 
 def train(arglist):
@@ -38,9 +55,9 @@ def train(arglist):
     random_seed = arglist.seed                      # only works when random_seed has non-zero value
     gamma = 0.99                                    # discount for future rewards
     batch_size = arglist.batch_size                 # num of transitions sampled from replay buffer
-    lr = 0.001
+    lr = arglist.lr
     exploration_noise = 0.1 
-    polyak = 0.995                                  # target policy update parameter (1-tau)
+    polyak = 1.0 - arglist.tau                      # target policy update parameter (1-tau)
     policy_noise = 0.2                              # target policy smoothing noise
     noise_clip = 0.5
     policy_delay = 2                                # delayed policy updates parameter
@@ -90,6 +107,9 @@ def train(arglist):
             # if episode is done then update policy:
             if done or t==(max_timesteps-1):
                 policy.update(replay_buffer, t, batch_size, gamma, polyak, policy_noise, noise_clip, policy_delay)
+                if arglist.ensemble:
+                    env.close()
+                    env = get_random_envs(env_name)
                 break
         
         # logging updates:
