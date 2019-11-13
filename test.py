@@ -17,6 +17,7 @@ def parse_arguments():
     parser.add_argument("--test-seed", type=int, default=1, help="random seed for testing")
     parser.add_argument("--render", action="store_true", default=False)
     parser.add_argument("--save-gif", action="store_true", default=False)
+    parser.add_argument("--ensemble", action="store_true", default=False)
     parser.add_argument("--multiple", action="store_true", default=False)
     return parser.parse_args()
 
@@ -43,9 +44,14 @@ def test(arglist):
     render = arglist.render
     save_gif = arglist.save_gif
     
-    filename = "TD3_{}_{}".format(env_name, arglist.train_seed)
-    # filename += '_solved'
-    directory = "./preTrained/{}".format(env_name)
+    if not arglist.ensemble:
+        filename = "TD3_{}_{}".format(env_name, arglist.train_seed)
+        # filename += '_solved'
+        directory = "./preTrained/{}".format(env_name)
+    else:
+        filename = "TD3_{}_{}_ensemble".format(env_name, arglist.train_seed)
+        # filename += '_solved'
+        directory = "./preTrained/{}".format(env_name)
     
     #env = gym.make(env_name)
     env = gen_envs(arglist)
